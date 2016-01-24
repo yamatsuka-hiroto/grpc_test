@@ -1,17 +1,17 @@
 package main
 
 import (
+	"fmt"
+	"log"
 	"net"
+	"os"
+	"strconv"
 	"sync"
+	"time"
 
-	pb "github.com/Cyberagent/yamatsuka_hiroto/etcd_test/proto"
+	pb "github.com/Cyberagent/yamatsuka_hiroto/grpc_test/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"time"
-	"log"
-	"strconv"
-	"os"
-	"fmt"
 )
 
 type KVStoreGRPC struct {
@@ -20,12 +20,12 @@ type KVStoreGRPC struct {
 }
 
 var (
-	connsN = 20
+	connsN   = 20
 	clientsN = 10
-	reqN = 10000
+	reqN     = 10000
 
-//network = "tcp"
-//address = ":5000"
+	//network = "tcp"
+	//address = ":5000"
 	network = "unix"
 	address = "/tmp/grpc_test.sock"
 
@@ -51,7 +51,7 @@ func main() {
 
 	startServerGRPC(network, address)
 
-	for i := 1; i < connsN + 1; i++ {
+	for i := 1; i < connsN+1; i++ {
 		Stress(network, address, keys, vals, i, clientsN)
 	}
 }
@@ -114,7 +114,7 @@ func Stress(network, address string, keys, vals [][]byte, connsN, clientsN int) 
 	}
 	clients := make([]pb.KVClient, clientsN)
 	for i := range clients {
-		clients[i] = pb.NewKVClient(conns[i % int(connsN)])
+		clients[i] = pb.NewKVClient(conns[i%int(connsN)])
 	}
 
 	requests := make(chan *pb.PutRequest, len(keys))
