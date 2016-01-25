@@ -5,11 +5,12 @@ import (
 	"log"
 	"net"
 	"os"
-	"strconv"
+	_ "strconv"
 	"sync"
 	"time"
 
-	pb "github.com/Cyberagent/yamatsuka_hiroto/grpc_test/proto"
+	"github.com/wayn3h0/go-uuid/internal/random"
+	pb "github.com/yamatsuka-hiroto/grpc_test/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -20,12 +21,12 @@ type KVStoreGRPC struct {
 }
 
 var (
-	connsN   = 20
-	clientsN = 10
-	reqN     = 10000
+	connsN   = 30
+	clientsN = 100
+	reqN     = 100000
 
-	//network = "tcp"
-	//address = ":5000"
+	//	network = "tcp"
+	//	address = ":5000"
 	network = "unix"
 	address = "/tmp/grpc_test.sock"
 
@@ -36,9 +37,8 @@ var (
 // データ作成
 func init() {
 	for i := 0; i < reqN; i++ {
-		b := []byte(strconv.Itoa(i))
-		keys[i] = b
-		vals[i] = b
+		keys[i], _ = random.New()
+		vals[i], _ = random.New()
 	}
 }
 
@@ -49,8 +49,10 @@ func main() {
 		}
 	}()
 
+	// gRPC サーバーの起動
 	startServerGRPC(network, address)
 
+	// connection 数をインクリメントして検証する
 	for i := 1; i < connsN+1; i++ {
 		Stress(network, address, keys, vals, i, clientsN)
 	}
@@ -112,6 +114,7 @@ func Stress(network, address string, keys, vals [][]byte, connsN, clientsN int) 
 		}
 		conns[i] = conn
 	}
+	// client の作成
 	clients := make([]pb.KVClient, clientsN)
 	for i := range clients {
 		clients[i] = pb.NewKVClient(conns[i%int(connsN)])
@@ -159,5 +162,6 @@ func Stress(network, address string, keys, vals [][]byte, connsN, clientsN int) 
 	tt := time.Since(st)
 	size := len(keys)
 	pt := tt / time.Duration(size)
-	log.Printf("conn:%d total:%v requests:%d client(s):%d (%v per each).\n", connsN, tt, size, clientsN, pt)
+	// log.Printf("conn:%d total:%v requests:%d client(s):%d (%v per each).\n", connsN, tt, size, clientsN, pt)
+	log.Printf("%v, %v", tt, pt)
 }
