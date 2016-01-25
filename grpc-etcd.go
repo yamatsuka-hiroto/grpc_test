@@ -5,11 +5,10 @@ import (
 	"log"
 	"net"
 	"os"
-	_ "strconv"
+	"strconv"
 	"sync"
 	"time"
 
-	"github.com/wayn3h0/go-uuid/internal/random"
 	pb "github.com/yamatsuka-hiroto/grpc_test/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -37,8 +36,8 @@ var (
 // データ作成
 func init() {
 	for i := 0; i < reqN; i++ {
-		keys[i], _ = random.New()
-		vals[i], _ = random.New()
+		keys[i] = []byte(strconv.Itoa(i))
+		vals[i] = []byte(strconv.Itoa(i))
 	}
 }
 
@@ -50,7 +49,7 @@ func main() {
 	}()
 
 	// gRPC サーバーの起動
-	startServerGRPC(network, address)
+	StartServerGRPC(network, address)
 
 	// connection 数をインクリメントして検証する
 	for i := 1; i < connsN+1; i++ {
@@ -69,10 +68,13 @@ func (s *KVStoreGRPC) Put(ctx context.Context, r *pb.PutRequest) (*pb.PutRespons
 	} else {
 		s.store[string(r.Key)] = r.Value
 	}
+
+	time.Sleep(3 * time.Millisecond)
+
 	return resp, nil
 }
 
-func startServerGRPC(network, port string) {
+func StartServerGRPC(network, port string) {
 	ln, err := net.Listen(network, port)
 	if err != nil {
 		panic(err)
@@ -93,9 +95,11 @@ func startServerGRPC(network, port string) {
 func genConn(network, address string) (*grpc.ClientConn, error) {
 	switch network {
 	case "tcp":
+		// Dial を指定しない場合はでデフォルトでTCP.
 		return grpc.Dial(address, grpc.WithInsecure())
 
 	case "unix":
+		// dialer を作成して grpc.WithDialer(dialer)でDialオプションを追加する.
 		dialer := func(a string, t time.Duration) (net.Conn, error) {
 			return net.Dial(network, a)
 		}
@@ -106,6 +110,8 @@ func genConn(network, address string) (*grpc.ClientConn, error) {
 }
 
 func Stress(network, address string, keys, vals [][]byte, connsN, clientsN int) {
+
+	// conn をconnsN 個の作成
 	conns := make([]*grpc.ClientConn, connsN)
 	for i := range conns {
 		conn, err := genConn(network, address)
@@ -114,9 +120,11 @@ func Stress(network, address string, keys, vals [][]byte, connsN, clientsN int) 
 		}
 		conns[i] = conn
 	}
-	// client の作成
+
+	// client の作成.
 	clients := make([]pb.KVClient, clientsN)
 	for i := range clients {
+		// client に conn を割り当てていく
 		clients[i] = pb.NewKVClient(conns[i%int(connsN)])
 	}
 
